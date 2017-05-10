@@ -8,7 +8,6 @@ Uses RSA algorithm to encode or decode a message
 import random
 import math
 
-
 def a_k_mod_n(a, k, n):
     '''
     Produces a^k mod n (included to make the process more self-explanatory than exp(a,k,n)
