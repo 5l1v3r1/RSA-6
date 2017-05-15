@@ -11,6 +11,11 @@ DEBUG = False
 
 
 def debug(func):
+    '''
+    If DEBUG is set to true, decorates function so it prints output and time to execute
+    :param func: function to be applied to
+    :return: returns the function with a timer/debug wrapper around it (used as decorator)
+    '''
     if DEBUG:
         def time_and_call(*args, **kwargs):
             print("  +Debug: Entering function `%s`" % func.__name__)
@@ -68,67 +73,125 @@ def prime(n):
     '''
     Determines if n is prime using Fermat's Theorem
     :param n: number to test
+    :return: returns True if n is prime else False
     '''
     return pow(2, n-1, n) == 1
 
 def toilent(p, q):
-    return (p-1) * (q-1) / gcd(p-1, q-1)
+    '''
+    Calculates lcm(p-1, q-1) which is used in place of phi(n) for this implemetation
+    :param p: first prime number
+    :param q: second prime number
+    :return: returns lcm(p-1, q-1)
+    '''
+    return (p-1) * (q-1) // gcd(p-1, q-1)
 
 @debug
-def encryption_exp(phi, seed=None):
+def encryption_exp(phi_n, seed=None):
+    '''
+    Finds an encryption exponent e which is relatively prime to phi(n)
+    :param phi_n: Euler phi function of n
+    :param seed: starting point for detection, uses random number if None
+    :return: returns encryption exponent e for use in public key
+    '''
     if seed is None:
-        start = random.randint(phi//10, phi)
+        start = random.randint(phi_n//10, phi_n)
     else:
         start = seed
     
     x = start
-    while gcd(x, phi) != 1 and x > 1:
+    while gcd(x, phi_n) != 1 and x > 1:
         x -= 1
     
     if x == 1: print("Failed encryption exponent")
     
     return x
 
-'''
-TODO: This function works but is as horribly inefficient as brute force cracking
-'''
 @debug
-def decryption_exp(e, phi_n, digits, seed=None):
-    if seed is None:
-        least = 10**(digits-1)
-        most = least * 10
-        start = random.randint(least, most)
+def decryption_exp(e, phi_n):
+    '''
+    Solves the equation e * x + phi_n * y = 1 for x for decryption
+    :param e: encryption exponent
+    :param phi_n: Euler phi function of n
+    :return: returns decryption exponent for private key
+    '''
+    coeffs = list(reversed(gcd_terms(e, phi_n)))
+    running_sum = [0, 1]
+    #TODO check case of len(coeffs) < 3
+    for i in range(2, len(coeffs)+1):
+        running_sum.append(running_sum[i-1] * coeffs[i-1] + running_sum[i-2])
+    factors = running_sum[-2:]
+    x = max(factors)
+    y = min(factors)
+    sanity_check = x * e - y * phi_n
+    if sanity_check > 0:
+        return x
     else:
-        start = seed
-    
-    x = start
-    while (x * e) % phi_n != 1:
-        x += 1
-    
-    return x
+        return -x + phi_n * (phi_n // x) #since msg**phi_n = 1 and d must be positive
+
+def gcd_terms(e, phi_n):
+    '''
+    Calculates the terms involved in calculating the gcd of e, phi(n)
+    :param e: encryption exponent
+    :param phi_n: Euler phi function of n
+    :return: returns list of factors used in the process (for use by `decryption_exp`)
+    '''
+    coefficients = []
+    num = phi_n
+    modulus = e
+    while modulus != 0:
+        coefficients.append(int(num // modulus))
+        new_modulus = num % modulus
+        num = modulus
+        modulus = new_modulus
+    return coefficients
 
 @debug
 def keys(digits):
+    '''
+    Generates a set of keys for RSA algorithm
+    :param digits: number of decimal digits desired in prime factors (roughly)
+    :return: returns publickey, privatekey which is the same as (n, e), (n, d)
+        where e and d are encryption and decryption exponents, respectively
+    '''
     p, q = two_large_primes(digits)
     n = p * q
     phi = toilent(p, q)
     e = encryption_exp(phi, seed=2**8-1)
-    d = decryption_exp(e, phi, digits)
+    d = decryption_exp(e, phi)
     return (n, e), (n, d)
 
 @debug
 def encrypt(message, publickey):
+    '''
+    Encrypts list of chunks using RSA
+    :param message: list of unencrypted chunks to encrypt
+    :param publickey: public key produced by `keys`
+    '''
     n, e = publickey
     assert message < n, "Cannot encrypt message larger than modulo"
     return pow(message, e, n)
 
 @debug
 def decrypt(encrypted, privatekey):
+    '''
+    Decrypts a list of chunks encrypted by RSA
+    :param encrypted: list of encrypted integer chunks
+    :param privatekey: private key (n, d) produced by `keys`
+    :return: returns unencrypted integer chunks
+    '''
     n, d = privatekey
+    #print(encrypted, d, n)
     return pow(encrypted, d, n)
 
 @debug
 def padded(message, chunk_size=3):
+    '''
+    Converts string message to integer by breaking it into chunks and using bitwise math
+    :param message: string message to encrypt
+    :param chunk_size: letters to include in each individual chunk
+    :return: returns list of integers representing string
+    '''
     chunks = []
     i = 0
     while i < len(message):
@@ -146,6 +209,11 @@ def padded(message, chunk_size=3):
 
 @debug
 def unpadded(chunks):
+    '''
+    Converts a number to string by analyzing each byte and extracting character
+    :param chunks: list of integer chunks to be converted
+    :return: returns the original string
+    '''
     msg = ""
     for chunk in chunks:
         msg_chunk = ""
@@ -156,19 +224,35 @@ def unpadded(chunks):
         msg += msg_chunk
     return msg
 
-def encrypt_message(message, publickey):
-    chunked = padded(message)
+def encrypt_message(message, publickey, chunk_size=3):
+    '''
+    Encrypts string message into chunks with padding
+    :param message: string message to encrypt
+    :param publickey: public key produced by `keys`
+    :param chunk_size: letters to include in each individual chunk
+    :return: returns list of encrypted chunks as integers
+    '''
+    chunked = padded(message, chunk_size)
     return [encrypt(msg_num, publickey) for msg_num in chunked]
 
 def decrypt_message(encrypted, privatekey):
+    '''
+    Decrypts a message and unpads it to be a string
+    :param encrypted: list of encrypted chunks
+    :param privatekey: private key (n, d) produced by `keys`
+    :return: returns the string message which was encrypted
+    '''
     chunked_msg_num = [decrypt(encrypted_chunk, privatekey) for encrypted_chunk in encrypted]
     return unpadded(chunked_msg_num)
 
-def main():    
-    publickey, privatekey = keys(10)
-    message = "Your mother was a hamster and you father smelled of elderberries"
+def main():
+    '''
+    Main function tests the system with example encryption
+    '''
+    publickey, privatekey = keys(200)
+    message = "THis message is complimentary of Ron Rivest, Adi Shamir, and Leonard Adleman"
     print("message =", message)
-    encrypted = encrypt_message(message, publickey)
+    encrypted = encrypt_message(message, publickey, chunk_size=10)
     print("encrypted =", encrypted)
     decrypted = decrypt_message(encrypted, privatekey)
     print("decrypted =", decrypted)
