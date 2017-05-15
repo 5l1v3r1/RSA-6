@@ -31,29 +31,6 @@ def prime(n):
     '''
     return a_k_mod_n(2, n-1, n) == 1
 
-def two_large_primes(digits):
-    '''
-    Computes large prime with this many digits or possibly more
-    :param digits: number of digits to include
-    :return: returns a large prime with that many digits minimum
-    '''
-    assert digits > 0, "Cannot compute number with zero or negative digits"
-    minimum = 10**(digits-1)
-    middle = minimum * 5
-    maximum = minimum * 10
-    
-    first_start = random.randint(minimum, middle)
-    second_start = random.randint(middle, maximum)
-    
-    first = gen_prime(first_start)
-    second = gen_prime(second_start)
-    
-    if first == second:
-        #handle case that they end up being the same by getting next prime
-        second = gen_prime(first+1)
-    
-    return first, second
-
 def gen_coprime(number, digits=None):
     if digits is None:
         digits = int(math.log10(number)) + 1
