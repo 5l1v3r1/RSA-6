@@ -1,5 +1,5 @@
 '''
-Second attempt at RSA algorithm
+RSA Algorithm implementation
 '''
 
 from fractions import gcd
@@ -7,7 +7,7 @@ import random
 import time
 
 
-DEBUG = False
+DEBUG = True
 
 
 def debug(func):
@@ -76,15 +76,6 @@ def prime(n):
     :return: returns True if n is prime else False
     '''
     return pow(2, n-1, n) == 1
-
-def toilent(p, q):
-    '''
-    Calculates lcm(p-1, q-1) which is used in place of phi(n) for this implemetation
-    :param p: first prime number
-    :param q: second prime number
-    :return: returns lcm(p-1, q-1)
-    '''
-    return (p-1) * (q-1) // gcd(p-1, q-1)
 
 @debug
 def encryption_exp(phi_n, seed=None):
@@ -156,7 +147,7 @@ def keys(digits):
     '''
     p, q = two_large_primes(digits)
     n = p * q
-    phi = toilent(p, q)
+    phi = (p-1) * (q-1)
     e = encryption_exp(phi, seed=2**8-1)
     d = decryption_exp(e, phi)
     return (n, e), (n, d)
@@ -181,7 +172,6 @@ def decrypt(encrypted, privatekey):
     :return: returns unencrypted integer chunks
     '''
     n, d = privatekey
-    #print(encrypted, d, n)
     return pow(encrypted, d, n)
 
 @debug
@@ -249,10 +239,10 @@ def main():
     '''
     Main function tests the system with example encryption
     '''
-    publickey, privatekey = keys(200)
-    message = "THis message is complimentary of Ron Rivest, Adi Shamir, and Leonard Adleman"
+    publickey, privatekey = keys(10)
+    message = "This message is complimentary of Ron Rivest, Adi Shamir, and Leonard Adleman"
     print("message =", message)
-    encrypted = encrypt_message(message, publickey, chunk_size=10)
+    encrypted = encrypt_message(message, publickey, chunk_size=5)
     print("encrypted =", encrypted)
     decrypted = decrypt_message(encrypted, privatekey)
     print("decrypted =", decrypted)
