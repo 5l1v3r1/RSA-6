@@ -1,0 +1,70 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{color}
+\usepackage[margin=0.5in]{geometry}
+
+
+\title{
+	The RSA Encryption Algorithm by Example
+}
+\author{Hunter Damron}
+
+\newcommand{\Z}{\mathbb{Z}}
+
+\begin{document}
+	% Title Page
+	\maketitle
+
+	% Table of Contents
+	\tableofcontents
+	
+	\section{Introduction}
+		This project demonstrates the functionality of the RSA encryption algorithm through the example of an implementation in the Python programming language. The RSA algorithm, which was created by Ron Rivest, Adi Shamir, and Leonard Adleman, is commonly used for encryption in modern environments and has been successful because of the difficulty of producing the prime factorization of large numbers. The RSA is also ideal for many situations because it does not require the sharing of a private key. Instead, the RSA algorithm uses two keys: a public key and a private key. The receiver of the message creates a public key which is shared publicly and used to encrypt messages. The receiver also produces a private key which can be used to decrypt any messages sent using the public key. By not sharing the private key, anyone can send messages using the public key, but only the generator of the keys can decrypt messages. 
+		
+	\section{Background}
+		The RSA algorithm is based largely on Euclid's algorithm for generation of the decryption key. Euclid's algorithm states that for integers a, b, \[ b = m \times a + r \text{ for some } m,r \in \Z \Rightarrow gcd(a,b) = gcd(r,a). \] This property can be used to find the integer solutions to equations of the form \[ ax + by = 1 \] which is used in inverting encryption. 
+		
+		The Euler phi function $\phi(n)$ is another important dependency of the RSA algorithm. The Euler phi function of n is given by \[ \phi(n) = \frac{p_1-1}{p_1} \times \frac{p_2-1}{p_2} \times \frac{p_3-1}{p_3} \times \cdots \] where $p_n$ represents all primes factors of n. In the RSA algorithm, n is selected by multiplying two prime numbers so the Euler phi function is simply $(p-1) \times (q-1)$ where p and q are the selected primes.
+		
+		Fermat's little theorem fulfills the last need of the RSA algorithm: primality testing. According to Fermat's primality test, \[ x^{\phi(n)} \mod n \equiv 1 \text{ for all } x \in \Z. \] This theorem allows the generation of valid prime numbers. Although there are other tests which are quicker, Fermat's theorem tests true primality while others show probably primality.
+		
+	\section{Key Generation}
+		The first step in the RSA algorithm is key generation. The end which plans to receive a message must produce a public key and a private key for encryption and decryption. Those keys are created by two prime numbers, so the primes must be generated first. This implementation (see function two\_large\_primes in Appendix A) uses two random numbers in a certain range and loops until a prime is found (Appendix A: gen\_prime). To test primality, Fermat's theorem is used (Appendix A: prime). Using the two prime numbers, the Euler phi function is found of the product of p and q. Since p and q are prime, \[ \phi(n) = (p-1) \times (q-1). \] $ \phi(n) $ is then used to calculate an encryption exponent $e$ such that $ gcd(e, \phi(n)) = 1 $. The public key is composed of $n$ and $e$ and is released to the public. A decryption exponent $d$ is then calculated using the encryption exponent. In decryption, it is necessary to solve equations of the form \[ \sqrt[k]{a} \mod n \equiv b \text{ for some } a \in \Z. \] To solve this, it must be converted to the form \[ a^d \mod n \equiv b \text{ where } d \in \Z. \] The decryption exponent $d$ is found by repeated application of Euclid's Algorithm. By using Euclid's algorithm to solve $ gcd(e, \phi(n)) $, the factors $m$ from each stage can be used to recreate the factors x and y in the equation \[ x \times e + y \times \phi(n) = 1 \text{ where } x,y \in \Z. \] (See Appendix A: decryption\_exp) The private key, composed of $n$ and $d$ is kept secret and not distributed.
+	
+	\section{Encryption}
+		The encryption mechanism uses exponentiation under a modulus to create an encrypted message which cannot be easily undone. The message $a$ is encrypted using \[ b = a^e \mod n \] where b is the encrypted message. (Appendix A: encrypt) Anyone can encrypt a message using the public key, but only the key generator can decrypt the message because modular exponentiation is not easily undone without the prime factorization of the modulus. Thus, this message can be safely sent to the receiver without risk of being easily compromised.
+	
+	\section{Decryption}
+		When undoing the form $ b = a^e \mod n $, the solution is found by \[ a = \sqrt[e]{b} \mod n \] which is unknown, but using the decryption key calculated earlier, this form can be simplified to \[ a = b^d \mod n \] which can be easily calculated. (Appendix A: decrypt) This conversion is possible because the decryption exponent satisfies $ e \times d + \phi(n) \times m = 1 $ for some integer m. Thus, \[ b^1 = b^{e \times d + \phi(n) \times m} \] and by Fermat's theorem, \[ b^{e \times d + \phi(n) \times m} = b^{e \times d} \text{ becase } b^{\phi(n)} = 1. \] Finally, \[ a = \sqrt[e]{b} = b^{1/e} = b^d \] Therefore, if $\phi(n)$ is known, the message can be easily decrypted. Because Euclid's algorithm can produce a negative result, this implementation accounts for this by adding multiples of $\phi(n)$ to produce a positive number.
+		
+	\section{Padding}
+		The RSA algorithm works well to encrypt integer values, but it cannot encrypt strings of characters, a common message type, directly. Short strings can be represented as numbers using base 2 ascii digits, but for longer strings, this representation would be unusably huge. Instead, this implementation uses a padding scheme which chunks strings into manageable sections and represents those as integers. (Appendix A: padded and unpadded) Another common technique is to apply a bidirectional cipher on the string and then encrypt the cipher key using RSA.
+	
+	\section{Cracking the RSA}
+		The RSA algorithm has been successful thus far because a quick way to find the prime factorization of a number has not yet been discovered. For real encryption using the RSA algorithm, keys with hundreds of digits are often used and currently the only way to crack the encryption is brute force testing of possible decryption keys. Modern computers are expanding to provide more multitasking capabilities, so the brute force method may become a larger risk in the future, but for now, the RSA is secure enough for nearly any task.
+	
+	\section{RSA by Example}
+		This section provides an example of the RSA algorithm using manageable numbers instead of the extremely large primes used in real implementations of the algorithm. To start, two primes are chosen, $ p := 53, q := 79 $. Using this, $ n = p \times q = 4187 $ and $ \phi(n) = (p-1) \times (q-1) = 52 \times 78 = 4056 $. An encryption exponent is chosen $ e := 253 $ because $ gcd(253, 4056) = 1 $ so $e$ and $\phi(n)$ are coprime. The decryption exponent is then calculated by finding $d$ such that $ d \times e + \phi(n) \times m = 1 \text{ for some } m $. By applying Euclid's algorithm and tracing the terms produced backwards, $d$ is found to be 6589. If the message chosen is "C", this is represented in ascii by 67 in decimal. This is encrypted by $ b = 67^{253} \mod 4187 = 3260 $. To decrypt this message, $ a = 3260^{6589} \mod 4187 = 67 $ which represents original message "C" in ascii.
+		 
+	\newpage
+	
+	\section{Appendix A: Source Code}
+	\lstset{
+		language=Python,
+		breaklines=true,
+		otherkeywords={self},
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{magenta}]{\#}
+	}
+	
+	\subsection{rsa.py}
+		\lstinputlisting{src/rsa/rsa.py}
+	
+\end{document}
